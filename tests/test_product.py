@@ -1,5 +1,5 @@
-import pytest
 import random
+import re
 from datetime import datetime
 from calendar import monthrange
 from faker import Faker
@@ -13,8 +13,7 @@ fake = Faker("pt_BR")
 PRODUCT_TYPES = ["EXTINGUISHER", "SERVICE", "CONSUMABLE", "ACCESSORY", "HOSE", "DETECTOR", "SPRINKLER", "CENTRAL",
                  "LIGHTING", "DOOR", "HYDRANT"]
 
-
-def test_create_product_success(page):  # Removido o 'async'
+def test_create_product_success(page):
     login_page = LoginPage(page)
     product_page = ProductPage(page)
 
@@ -23,6 +22,9 @@ def test_create_product_success(page):  # Removido o 'async'
 
     page.goto(f"{BASE_URL}/produtos")
 
+    pagination_text = page.locator("footer").get_by_text(re.compile(r"\d+-\d+ de \d+")).text_content()
+    total_antes = int(pagination_text.split(" de ")[1].strip())
+
     random_product_type = random.choice(PRODUCT_TYPES)
     product_name = f"Produto {fake.word().capitalize()} {random.randint(100, 999)}"
     lot = f"LOT-{random.randint(1000, 9999)}"
@@ -30,7 +32,11 @@ def test_create_product_success(page):  # Removido o 'async'
 
     today = datetime.now()
     _, last_day_of_month = monthrange(today.year, today.month)
-    random_validity_day = random.randint(today.day, last_day_of_month)
+
+    if today.day == last_day_of_month:
+        random_validity_day = today.day
+    else:
+        random_validity_day = random.randint(today.day + 1, last_day_of_month)
 
     product_page.create_product(
         name=product_name,
@@ -40,8 +46,9 @@ def test_create_product_success(page):  # Removido o 'async'
         price=price,
     )
 
-    toast = page.get_by_role("alert")
-    toast.wait_for(state="visible")
+    page.wait_for_timeout(1000)
 
-    assert toast.is_visible()
-    assert "sucesso" in toast.text_content().lower() or "cadastrado" in toast.text_content().lower()
+    pagination_text_depois = page.locator("footer").get_by_text(re.compile(r"\d+-\d+ de \d+")).text_content()
+    total_depois = int(pagination_text_depois.split(" de ")[1].strip())
+
+    assert total_depois == total_antes + 1
