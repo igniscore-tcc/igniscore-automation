@@ -1,5 +1,5 @@
 from faker import Faker
-
+import re
 from config.settings import (
     BASE_URL,
     TEST_EMAIL,
@@ -25,6 +25,10 @@ def test_create_cpf_client_success(page):
 
     page.goto(f"{BASE_URL}/clientes")
 
+    pagination_text = page.locator("footer").get_by_text(re.compile(r"\d+-\d+ de \d+")).text_content()
+
+    total_antes = int(pagination_text.split(" de ")[1].strip())
+
     name = fake.name()
     cpf = fake.cpf()
     email = fake.email()
@@ -38,6 +42,9 @@ def test_create_cpf_client_success(page):
         obs="Cliente PF criado automaticamente pelo Playwright",
     )
 
-    page.get_by_text(name).wait_for()
+    page.wait_for_timeout(1000)
 
-    assert page.get_by_text(name).is_visible()
+    pagination_text_depois = page.locator("footer").get_by_text(re.compile(r"\d+-\d+ de \d+")).text_content()
+    total_depois = int(pagination_text_depois.split(" de ")[1].strip())
+
+    assert total_depois == total_antes + 1
