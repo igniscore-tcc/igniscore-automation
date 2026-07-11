@@ -1,5 +1,5 @@
 from faker import Faker
-
+import re
 from config.settings import (
     BASE_URL,
     TEST_EMAIL,
@@ -10,7 +10,6 @@ from pages.login_page import LoginPage
 from pages.client_page import ClientPage
 
 fake = Faker("pt_BR")
-
 
 def test_create_cnpj_client_success(page):
     login_page = LoginPage(page)
@@ -24,6 +23,9 @@ def test_create_cnpj_client_success(page):
     )
 
     page.goto(f"{BASE_URL}/clientes")
+
+    pagination_text = page.locator("footer").get_by_text(re.compile(r"\d+-\d+ de \d+")).text_content()
+    total_antes = int(pagination_text.split(" de ")[1].strip())
 
     company_name = fake.company()
     cnpj = fake.cnpj()
@@ -40,6 +42,9 @@ def test_create_cnpj_client_success(page):
         obs="Cliente PJ criado automaticamente pelo Playwright",
     )
 
-    page.get_by_text(company_name).wait_for()
+    page.wait_for_timeout(1000)
 
-    assert page.get_by_text(company_name).is_visible()
+    pagination_text_depois = page.locator("footer").get_by_text(re.compile(r"\d+-\d+ de \d+")).text_content()
+    total_depois = int(pagination_text_depois.split(" de ")[1].strip())
+
+    assert total_depois == total_antes + 1
